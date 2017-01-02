@@ -47,6 +47,9 @@ STK_READ_OSCCAL_EXT = 0x78  # 'x'
 STK_HARDWARE = 0x80  # ' '
 STK_SW_MAJOR = 0x81  # ' '
 STK_SW_MINOR = 0x82  # ' '
+CSTM_SN_MAJOR = 0x92  # Custom for serial number
+CSTM_SN_MINOR = 0x93  # Custom for serial number
+
 
 SYNC = [STK_GET_SYNC, CRC_EOP]
 ENTER_PROG_MODE = [STK_ENTER_PROGMODE, CRC_EOP]
@@ -54,6 +57,8 @@ EXIT_PROG_MODE = [STK_LEAVE_PROGMODE, CRC_EOP]
 GET_HARDWARE = [STK_GET_PARAMETER, STK_HARDWARE, CRC_EOP]
 GET_SW_MAJOR = [STK_GET_PARAMETER, STK_SW_MAJOR, CRC_EOP]
 GET_SW_MINOR = [STK_GET_PARAMETER, STK_SW_MINOR, CRC_EOP]
+GET_SN_MAJOR = [STK_GET_PARAMETER, CSTM_SN_MAJOR, CRC_EOP]
+GET_SN_MINOR = [STK_GET_PARAMETER, CSTM_SN_MINOR, CRC_EOP]
 GET_SAFE_LFUSE = [STK_UNIVERSAL, 0x50, 0x00, 0x00, 0x00, CRC_EOP]
 GET_SAFE_HFUSE = [STK_UNIVERSAL, 0x58, 0x08, 0x00, 0x00, CRC_EOP]
 GET_SAFE_EFUSE = [STK_UNIVERSAL, 0x50, 0x08, 0x00, 0x00, CRC_EOP]
@@ -127,6 +132,14 @@ class SimpleDude(object):
     
         _LOGGER.info("Bootloader version %s.%s", hex(major), hex(minor))
     
+        _LOGGER.debug("Getting the MAJOR serial number of arduino")
+        major = self.spi_transaction(GET_SN_MAJOR, 1)
+
+        _LOGGER.debug("Getting the MINOR serial number of arduino")
+        minor = self.spi_transaction(GET_SN_MINOR, 1)
+
+        _LOGGER.info("Serial number %s", major*256 + minor)
+
         # enter programming mode
         _LOGGER.debug("Entering programming mode")
         self.spi_transaction(ENTER_PROG_MODE)

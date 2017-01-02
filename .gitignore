@@ -96,5 +96,5 @@ ENV/
 .idea/inspectionProfiles/
 .idea/misc.xml
 .idea/modules.xml
-.idea/stk500v1.iml
+.idea/SimpleDude.iml
 .idea/workspace.xml
