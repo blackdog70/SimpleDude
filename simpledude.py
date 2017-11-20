@@ -3,6 +3,7 @@
 # import libraries
 import logging
 import time
+from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
 from serial import rs485
 
 STK_OK = 0x10
@@ -52,6 +53,7 @@ CSTM_SN_MINOR = 0x93  # Custom for serial number
 
 
 SYNC = [STK_GET_SYNC, CRC_EOP]
+CHIP_ERASE = [STK_CHIP_ERASE, CRC_EOP]
 ENTER_PROG_MODE = [STK_ENTER_PROGMODE, CRC_EOP]
 EXIT_PROG_MODE = [STK_LEAVE_PROGMODE, CRC_EOP]
 GET_HARDWARE = [STK_GET_PARAMETER, STK_HARDWARE, CRC_EOP]
@@ -93,7 +95,7 @@ class SimpleDude(object):
             # Wait for bytesreply + INSYNC + OK
             reply = list(self.sock.read(size=bytesreply + 2))
             _LOGGER.debug("Received %s", [hex(b) for b in reply])
-            if not reply or ([reply[0], reply[-1:][0]] != INSINK):
+            if not reply or ([reply[0], reply[-1]] != INSINK):
                 if n < self.retry:
                     n += 1
                     _LOGGER.critical("Retry %s", n)
@@ -164,11 +166,16 @@ class SimpleDude(object):
     def program(self):
         self.sync()
         # enter programming mode
+        # _LOGGER.info("Chip erase")
+        # self.spi_transaction(CHIP_ERASE)
+
+        # enter programming mode
         _LOGGER.debug("Entering programming mode")
         self.spi_transaction(ENTER_PROG_MODE)
     
         # start with page address 0
         address = 0
+        prg_length = 0
     
         # open the hex file
     
@@ -194,7 +201,8 @@ class SimpleDude(object):
     
                 # half the size
                 size = len(data)
-                _LOGGER.info("Sending program page to write %s laddress %s haddress %s", size, laddress, haddress)
+                prg_length += size
+                _LOGGER.info("Sending program page %s:%s", haddress, laddress)
                 self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data + [CRC_EOP])
     
                 # when the whole program was uploaded
@@ -203,6 +211,7 @@ class SimpleDude(object):
         # leave programming mode
         _LOGGER.debug("Leaving programming mode")
         self.spi_transaction(EXIT_PROG_MODE)
+        _LOGGER.info("Program size %s bytes", prg_length)
     
     def verify(self):
         self.sync()
@@ -255,8 +264,12 @@ class SimpleDude(object):
 
 
 if __name__ == '__main__':
-    ser = rs485.RS485('/dev/ttyUSB0', baudrate=19200, timeout=2)
-    dude = SimpleDude(ser, hexfile="/home/sebastiano/Programs/sloeber/workspace/testportddrb/Release/testportddrb.hex", mode485=True)
-    dude.get_info()
-    # dude.program()
+    # rs485.RS485Settings.rts_level_for_tx = False
+    # rs485.RS485Settings.rts_level_for_rx = True
+    ser = rs485.RS485('/dev/ttyUSB1', baudrate=19200, timeout=2)
+    # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/blink/Release/blink.hex", mode485=True)
+    dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/domuino/Release/domuino.hex", mode485=True)
+    # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/testssd1306ascii/Release/testssd1306ascii.hex", mode485=True)
+    # dude.get_info()
+    dude.program()
     # dude.verify()
