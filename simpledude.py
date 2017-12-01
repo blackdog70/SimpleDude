@@ -85,12 +85,12 @@ class SimpleDude(object):
         while retry:
             _LOGGER.debug("Send %s", [hex(b) for b in codes])
             time.sleep(0.01)
-            self.sock.setRTS(False)
+            # self.sock.setRTS(False)
             tx_start = time.time()
             self.sock.write(codes)
             while (time.time() - tx_start) < (tx_complete / 1000.0):
                 pass
-            self.sock.setRTS(True)
+            # self.sock.setRTS(True)
             _LOGGER.debug("Wait for reply")
             # Wait for bytesreply + INSYNC + OK
             reply = list(self.sock.read(size=bytesreply + 2))
@@ -191,28 +191,34 @@ class SimpleDude(object):
                 self.spi_transaction([STK_LOAD_ADDRESS, laddress, haddress, CRC_EOP])
     
                 data = list()
+                row = ""
                 # the hex in the file is represented in char
                 # so we have to merge 2 chars into one byte
                 # 16 bytes in a line, 16 * 8 = 128
                 for i in range(8):
+                    row = hexfile.readline()
+                    # check EOF
+                    if row[7:9] == 0x01:
+                        break
                     # just take the program data
-                    hexrow = hexfile.readline()[9:][:-4]
+                    hexrow = row[9:][:-4]
                     data.extend([int(hexrow[b:b + 2], 16) for b in range(len(hexrow))[::2]])
     
                 # half the size
-                size = len(data)
-                prg_length += size
-                _LOGGER.info("Sending program page %s:%s", haddress, laddress)
-                self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data + [CRC_EOP])
+                if data:
+                    size = len(data)
+                    prg_length += size
+                    _LOGGER.info("Sending program page %s:%s", haddress, laddress)
+                    self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data + [CRC_EOP])
     
                 # when the whole program was uploaded
-                if size != 0x80:
+                if not row:
                     break
         # leave programming mode
         _LOGGER.debug("Leaving programming mode")
         self.spi_transaction(EXIT_PROG_MODE)
         _LOGGER.info("Program size %s bytes", prg_length)
-    
+
     def verify(self):
         self.sync()
         # enter programming mode
@@ -255,6 +261,8 @@ class SimpleDude(object):
                     _LOGGER.debug("Leaving programming mode")
                     self.spi_transaction(EXIT_PROG_MODE)
                     return False
+
+                # FIX: Allineare con program
                 if size != 0x80:
                     _LOGGER.info("Program check OK.")
                     # leave programming mode
