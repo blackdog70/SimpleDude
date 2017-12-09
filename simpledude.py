@@ -172,48 +172,45 @@ class SimpleDude(object):
         # enter programming mode
         _LOGGER.debug("Entering programming mode")
         self.spi_transaction(ENTER_PROG_MODE)
-    
+
         # start with page address 0
         address = 0
         prg_length = 0
-    
+        data = list()
+
         # open the hex file
-    
         with open(self.hexfile, "rb") as hexfile:
             while True:
-                # calculate page address
-                laddress = address % 256
-                haddress = int(address / 256)
-                address += 64
-    
-                # load page address
-                _LOGGER.debug("Sending page address")
-                self.spi_transaction([STK_LOAD_ADDRESS, laddress, haddress, CRC_EOP])
-    
-                data = list()
-                row = ""
                 # the hex in the file is represented in char
                 # so we have to merge 2 chars into one byte
                 # 16 bytes in a line, 16 * 8 = 128
-                for i in range(8):
-                    row = hexfile.readline()
-                    # check EOF
-                    if row[7:9] == 0x01:
-                        break
-                    # just take the program data
+                # for i in range(8):
+                row = hexfile.readline()
+                # check EOF
+                # just take the program data
+                if row[7:9] != b'01':
                     hexrow = row[9:][:-4]
                     data.extend([int(hexrow[b:b + 2], 16) for b in range(len(hexrow))[::2]])
-    
-                # half the size
-                if data:
-                    size = len(data)
-                    prg_length += size
-                    _LOGGER.info("Sending program page %s:%s", haddress, laddress)
-                    self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data + [CRC_EOP])
-    
-                # when the whole program was uploaded
-                if not row:
+                    _LOGGER.info("ROW: %s - len data: %s", row, len(data))
+                if not data:
+                    _LOGGER.debug("End program")
                     break
+                if len(data) >= 128 or row[7:9] == b'01':
+                    size = len(data[:128])
+                    prg_length += size
+                    # load page address
+                    _LOGGER.debug("Sending page address")
+
+                    # calculate page address
+                    laddress = address % 256
+                    haddress = int(address / 256)
+                    address += 64
+
+                    self.spi_transaction([STK_LOAD_ADDRESS, laddress, haddress, CRC_EOP])
+                    _LOGGER.info("Sending page %s:%s block size:%s data:%s", haddress, laddress, size, list(map(hex, data[:128])))
+                    self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data[:128] + [CRC_EOP])
+                    data = data[128:]
+
         # leave programming mode
         _LOGGER.debug("Leaving programming mode")
         self.spi_transaction(EXIT_PROG_MODE)
