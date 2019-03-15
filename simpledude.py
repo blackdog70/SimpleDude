@@ -3,7 +3,7 @@
 # import libraries
 import logging
 import time
-from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
+#from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
 from serial import rs485
 
 STK_OK = 0x10
@@ -271,7 +271,7 @@ class SimpleDude(object):
 if __name__ == '__main__':
     # rs485.RS485Settings.rts_level_for_tx = False
     # rs485.RS485Settings.rts_level_for_rx = True
-    ser = rs485.RS485('/dev/ttyUSB1', baudrate=19200, timeout=2)
+    ser = rs485.RS485('/dev/ttyUSB1', baudrate=38400, timeout=2)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/blink/Release/blink.hex", mode485=True)
     dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/domuino/Release/domuino.hex", mode485=True)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/testssd1306ascii/Release/testssd1306ascii.hex", mode485=True)
