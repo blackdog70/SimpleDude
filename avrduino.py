@@ -2,30 +2,47 @@
 
 import subprocess
 import tkinter as tk
+import os
 
 from serial import rs485
 from simpledude import SimpleDude
 
-BASE = "/home/sebastiano/Programs/sloeber/arduinoPlugin/packages/arduino/tools/avrdude/6.3.0-arduino14/"
-AVRDUDE = BASE + "bin/avrdude "
-AVRCONF = BASE + "etc/avrdude.conf "
-PORT = "usbasp"
+#BASE = "/home/sebastiano/Programs/sloeber/arduinoPlugin/packages/arduino/tools/avrdude/6.3.0-arduino14/"
+#AVRDUDE = BASE + "bin/avrdude "
+#AVRCONF = BASE + "etc/avrdude.conf "
+BASE = os.path.dirname(__file__)
+if os.name == 'nt':
+    BASE += "/avrdude/win/"
+    AVRDUDE = BASE + "/avrdude.exe"
+    AVRCONF = BASE + "/avrdude.conf "
+else:
+    BASE += "/avrdude/linux/"
+    AVRDUDE = BASE + "/avrdude"
+    AVRCONF = BASE + "/avrdude.conf "
+PROGRAMMER = "USBasp"
 CPU = "m168p"
 WORKSPACE = "/home/sebastiano/Documents/sloeber-workspace/"
 BOOTLOADER = WORKSPACE + "optiboot485/optiboot/bootloaders/optiboot/optiboot_pro_8MHz.hex"
 DOMUINO = WORKSPACE + "domuino/Release/domuino.hex"
 
-cmd = "{} -c {} -p {} -C {}".format(AVRDUDE, PORT, CPU, AVRCONF)
+cmd = "{} -c {} -p {} -C {}".format(AVRDUDE, PROGRAMMER, CPU, AVRCONF)
 
 
 def get_info():
-    p = subprocess.Popen([cmd],
+    p = subprocess.Popen([AVRDUDE, "-c", PROGRAMMER, "-p", CPU],
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE,
                          stdin=subprocess.PIPE,
                          shell=True)
     stdout, stderr = p.communicate()
-    print(stdout, stderr)
+    stderr = stderr.decode("UTF-8")
+    info = stderr.split("\r")
+    print(info)
+    if stderr.find("failed") > 0:
+        print(info[4])
+    elif info:
+        print(info[4])
+        print(info[6].split(":")[1][1:])
 
 
 def update_fuses():
