@@ -9,20 +9,20 @@ from serial import rs485
 from simpledude import SimpleDude
 
 
-BASE = os.path.dirname(__file__)
+BASEDIR = os.path.dirname(__file__)
+MAKEDIR = "/home/sebastiano/Documents/sloeber-workspace/optiboot485/optiboot/bootloaders/optiboot/"
+
 if os.name == 'nt':
-    BASE += "/avrdude/win"
-    AVRDUDE = BASE + "/avrdude.exe"
-    AVRCONF = BASE + "/avrdude.conf"
+    AVRDUDE = BASEDIR + "/avrdude/win/avrdude.exe"
+    AVRCONF = BASEDIR + "/avrdude/win/avrdude.conf"
 else:
-    BASE += "/avrdude/linux"
-    AVRDUDE = BASE + "/avrdude"
-    AVRCONF = BASE + "/avrdude.conf"
+    AVRDUDE = BASEDIR + "/avrdude/linux/avrdude"
+    AVRCONF = BASEDIR + "/avrdude/linux/avrdude.conf"
+
 PROGRAMMER = "USBasp"
 CPU = "m168p"
 
-AVRCMD = "{} -c {} -p {} -C {} -vv ".format(AVRDUDE, PROGRAMMER, CPU, AVRCONF)
-
+AVRCMD = "{} -c {} -P usb -p {} -C {} -vv ".format(AVRDUDE, PROGRAMMER, CPU, AVRCONF)
 WORKSPACE = "/home/sebastiano/Documents/sloeber-workspace/"
 BOOTLOADER = "optiboot_pro_8MHz.hex"
 DOMUINO = "domuino.hex"
@@ -31,54 +31,67 @@ DOMUINO = "domuino.hex"
 
 class AvrDuino(object):
     def __init__(self, root):
-        self.lbl_info = tk.Text(root)
-        btn_getinfo = tk.Button(root, text="Info", width=25, command=self.get_info)
-        btn_fuses = tk.Button(root, text="Fuses", width=25, command=self.update_fuses)
+        self.txt_info = tk.Text(root)
+        btn_getinfo = tk.Button(root, text="AVR Info", width=25, command=self.get_info)
+        btn_fuses = tk.Button(root, text="Set fuses", width=25, command=self.update_fuses)
         btn_bootloader = tk.Button(root, text="Flash Bootloader RS485", width=25, command=self.flash_bootloader)
         btn_program = tk.Button(root, text="Upload Domuino", width=25, command=self.upload_domuino)
         btn_stop = tk.Button(root, text="Cancel", width=25, command=root.destroy)
         self.dry_run = tk.BooleanVar()
         chk_dry = tk.Checkbutton(root, text="Dry run", variable=self.dry_run)
-        self.spinbox_id = tk.Spinbox(root, from_=0, to=65535)
 
-        btn_getinfo.pack()
-        btn_fuses.pack()
-        btn_bootloader.pack()
-        btn_program.pack()
-        btn_stop.pack()
-        self.spinbox_id.pack()
-        chk_dry.pack()
+        self.number = tk.StringVar()
+        try:
+            with open("backup.cfg", "r") as f:
+                self.number.set(f.read())
+        except IOError:
+            pass
+        label_id = tk.Label(root, text = "Next ID")
+        self.spinbox_id = tk.Spinbox(root, from_=0, to=65535, textvariable=self.number)
 
-        self.lbl_info.config(state=tk.DISABLED)
-        self.lbl_info.pack()
+        btn_getinfo.grid(row=0, columnspan=2, padx=5)
+        btn_fuses.grid(row=1, columnspan=2, padx=5)
+        btn_bootloader.grid(row=2, columnspan=2, padx=5)
+        btn_program.grid(row=3, columnspan=2, padx=5)
+        btn_stop.grid(row=4, columnspan=2, padx=5)
+        label_id.grid(row=5, column=0, padx=5)
+        self.spinbox_id.grid(row=5, column=1, padx=5)
+        chk_dry.grid(row=6, columnspan=2, padx=5)
+
+        self.txt_info.grid(row=0, column=2, rowspan=7, padx=5, pady=5)
+        self.txt_info.config(state=tk.DISABLED)
 
     def _show_info(self, infos):
-        self.lbl_info.config(state=tk.NORMAL)
-        self.lbl_info.delete("1.0", tk.END)
-        self.lbl_info.insert(tk.END, infos)
-        self.lbl_info.config(state=tk.DISABLED)
-        self.lbl_info.pack()
+        self.txt_info.config(state=tk.NORMAL)
+        self.txt_info.delete("1.0", tk.END)
+        self.txt_info.insert(tk.END, infos)
+        self.txt_info.config(state=tk.DISABLED)
+        self.txt_info.pack()
 
-    def _run(self, command):
+    def _run(self, command, io="stderr", work_dir=BASEDIR):
+        run_ok = True
         p = subprocess.Popen(command,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              stdin=subprocess.PIPE,
-                             shell=True)
-#        stdout, stderr = p.communicate()
-#        stderr = stderr.decode("UTF-8")
-        self.lbl_info.config(state=tk.NORMAL)
-        self.lbl_info.delete("1.0", tk.END)
-        while True:
-            retcode = p.poll()
-            line = p.stderr.readline()
-            self.lbl_info.config(state=tk.NORMAL)
-            self.lbl_info.insert(tk.END, line)
-            self.lbl_info.config(state=tk.DISABLED)
-            self.lbl_info.pack()
-            if retcode is not None:
-                break
-#        return stderr.split("\n")
+                             shell=True,
+                             cwd=work_dir)
+        self.txt_info.config(state=tk.NORMAL)
+        self.txt_info.delete("1.0", tk.END)
+        while p.returncode is None:
+            if io == "stdout":
+                line = p.stdout.readline()
+            else:
+                line = p.stderr.readline()
+            if any(sub in str(line) for sub in ["error:", "verification error"]):
+                run_ok = False
+            self.txt_info.config(state=tk.NORMAL)
+            self.txt_info.insert(tk.END, line)
+            self.txt_info.config(state=tk.DISABLED)
+            self.txt_info.see(tk.END)
+            p.poll()
+            root.update()
+        return run_ok
 
     @staticmethod
     def _find_info(infos, substring):
@@ -109,32 +122,41 @@ class AvrDuino(object):
             info.extend(self._find_info(full, "input file 0x"))
             self._show_info("\n".join(info))
 
-    def flash_bootloader(self):
-        lines = list()
-        with open(BOOTLOADER) as f:
-            lines = f.read().splitlines()
-        id = int(self.spinbox_id.get())
-        id_remainder = "{0:02X}".format(id // 0xff)
-        id_modulo = "{0:02X}".format(id % 0xff)
-        idline = lines[-3][1:13] + id_modulo + id_remainder
-        chksum = hex(0x100 - sum([int(i, 16) for i in wrap(idline, 2)]) & 0xFF)[2:]
-        lines[-3] = ":" + idline + chksum
-        with open("id_boot.hex","w") as f:
-            f.write("\n".join(lines))
+    def _compile_bootloader(self):
+        _id = int(self.spinbox_id.get())
+        make = "make "\
+               "ENV=sloeber BAUD_RATE=38400 LED=D2 LED_START_FLASHES=5 "\
+               "SN_MAJOR={} SN_MINOR={} pro8".format(_id // 0xff, _id % 0xff)
+        cp = "cp {} {}".format(MAKEDIR+BOOTLOADER, BASEDIR)
+        self._run("{}; {}".format(make, cp), io="stdout", work_dir=MAKEDIR)
 
- #       full = self._run(AVRCMD + "-u -U flash:w:{}".format(BOOTLOADER))
-        pass
+    def flash_bootloader(self):
+        self._compile_bootloader()
+
+        if self._run(AVRCMD + "-u -U flash:w:\"{}\":i".format(BOOTLOADER)):
+            self.number.set(int(self.number.get()) + 1)
+            with open("backup.cfg", "w") as f:
+                f.write(self.number.get())
+            self.spinbox_id.update()
 
     def upload_domuino(self):
-        ser = rs485.RS485('/dev/ttyUSB1', baudrate=38400, timeout=2)
+        ser = rs485.RS485('/dev/ttyUSB2', baudrate=38400, timeout=2)
         dude = SimpleDude(ser, hexfile= DOMUINO, mode485=True)
-        dude.program()
+
+        self.txt_info.config(state=tk.NORMAL)
+        self.txt_info.delete("1.0", tk.END)
+        for progress in dude.program():
+            self.txt_info.config(state=tk.NORMAL)
+            self.txt_info.insert(tk.END, progress + "\n")
+            self.txt_info.config(state=tk.DISABLED)
+            self.txt_info.update()
+            self.txt_info.see(tk.END)
         print("Program RS485")
 
 
 if __name__ == '__main__':
     root = tk.Tk()
-    root.title("Domuino")
+    root.title("Domuino programmer")
 
     avr = AvrDuino(root)
 
