@@ -191,7 +191,7 @@ class SimpleDude(object):
                 if row[7:9] != b'01':
                     hexrow = row[9:][:-4]
                     data.extend([int(hexrow[b:b + 2], 16) for b in range(len(hexrow))[::2]])
-                    _LOGGER.info("ROW: %s - len data: %s", row, len(data))
+                    _LOGGER.debug("ROW: %s - len data: %s", row, len(data))
                 if not data:
                     _LOGGER.debug("End program")
                     break
@@ -207,7 +207,9 @@ class SimpleDude(object):
                     address += 64
 
                     self.spi_transaction([STK_LOAD_ADDRESS, laddress, haddress, CRC_EOP])
-                    _LOGGER.info("Sending page %s:%s block size:%s data:%s", haddress, laddress, size, list(map(hex, data[:128])))
+                    msg = "Sending page {}:{} block size:{}".format(haddress, laddress, size)
+                    yield msg
+                    _LOGGER.info(msg + "data:{}".format(list(map(hex, data[:128]))))
                     self.spi_transaction([STK_PROG_PAGE, 0, size, FLASH_MEMORY] + data[:128] + [CRC_EOP])
                     data = data[128:]
 
@@ -271,10 +273,10 @@ class SimpleDude(object):
 if __name__ == '__main__':
     # rs485.RS485Settings.rts_level_for_tx = False
     # rs485.RS485Settings.rts_level_for_rx = True
-    ser = rs485.RS485('/dev/ttyUSB1', baudrate=38400, timeout=2)
+    ser = rs485.RS485('/dev/ttyUSB2', baudrate=38400, timeout=2)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/blink/Release/blink.hex", mode485=True)
-    dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/domuino/Release/domuino.hex", mode485=True)
+    dude = SimpleDude(ser, hexfile="domuino.hex", mode485=True)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/testssd1306ascii/Release/testssd1306ascii.hex", mode485=True)
-    # dude.get_info()
+    #dude.get_info()
     dude.program()
     # dude.verify()
