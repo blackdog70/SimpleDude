@@ -77,8 +77,12 @@ class SimpleDude(object):
         self.retry = retry
         self.mode485 = mode485
         self.logger = logging.getLogger(__name__)
+        self.handler = None
 
     def log_handler(self, handler):
+        if self.handler:
+            self.logger.removeHandler(self.handler)
+        self.handler = handler
         self.logger.addHandler(handler)
 
     def spi_transaction(self, codes, bytesreply=0):

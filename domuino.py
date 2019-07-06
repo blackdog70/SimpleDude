@@ -110,16 +110,24 @@ class Domuino(DomuNet):
                 return 0
             msg = bytes([ANSWERS['ACK']])
             with self.lock:
-                # logging.info("Parsing command %s", QUERIES[packet.data[0]])
-                now = datetime.datetime.now()
-                value = {'time': now.strftime("%d/%m/%Y %H:%M:%S"),
-                         'node': packet.source,
-                         'type': QUERIES[packet.data[0]]}
+                # self.logger.info("Parsing command %s", QUERIES[packet.data[0]])
+                value = {'node': packet.source, 'type': QUERIES[packet.data[0]]}
                 if packet.data[0] == QUERIES["MEM"]:
                     value.update({'value': struct.unpack("h", packet.data[1:3])[0]})
+                elif packet.data[0] == QUERIES['EMS']:  # ems
+                    value.update({'value': struct.unpack("ff", packet.data[1:])})
+                elif packet.data[0] == QUERIES['DHT']:  # TEMP & HUM
+                    value.update({'temperature': struct.unpack("h", packet.data[1:3])[0] / 10.0,
+                                  'humidity': struct.unpack("h", packet.data[3:5])[0] / 10.0})
+                elif packet.data[0] == QUERIES['PIR']:
+                    value.update({'value': struct.unpack("b", packet.data[1:2])[0]})
+                elif packet.data[0] == QUERIES['LUX']:
+                    value.update({'value': struct.unpack("h", packet.data[1:3])[0]})
+                elif packet.data[0] == QUERIES["SWITCH"]:
+                    value.update({'state': list(packet.data[1:7])})
                 elif packet.data[0] == QUERIES['START']:
                     pass
-                elif packet.data[0] == QUERIES['LCDWRITE']:
+                elif packet.data[0] == QUERIES['WRITE']:
                     pass
         except Exception as e:
             raise e
