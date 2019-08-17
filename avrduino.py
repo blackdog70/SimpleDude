@@ -63,6 +63,7 @@ class AvrDuino(object):
         btns = tk.Frame(root)
 
         self.number = tk.StringVar()
+        self.new_number = tk.StringVar()
         self.usb_selected = tk.StringVar()
         if len(self.config.sections()):
             self.number.set(self.config["config"]["number"])
@@ -96,17 +97,24 @@ class AvrDuino(object):
         btn_program = tk.Button(btns, text="Program Domuino", width=25, command=self.program_domuino)
         btn_getosccal = tk.Button(btns, text="Get OSCCAL", width=25, command=self.get_osccal)
         btn_update = tk.Button(btns, text="Update Domuino", width=25, command=self.update_domuino)
+        btn_setid = tk.Button(btns, text="Set ID", width=25, command=self.set_id)
         btn_start = tk.Button(btns, text="Start Domuino", width=25, command=self.start_domuino)
         btn_stop = tk.Button(btns, text="Close", width=25, command=root.destroy)
         self.dry_run = tk.BooleanVar()
         chk_dry = tk.Checkbutton(btns, text="Dry run", variable=self.dry_run)
 
         number = tk.Frame(btns)
-        label_id = tk.Label(number, text="Next ID")
+        label_id = tk.Label(number, text="ID")
         self.spinbox_id = tk.Spinbox(number, from_=0, to=65535, textvariable=self.number)
         label_id.pack(side=tk.LEFT, padx=5)
         self.spinbox_id.pack()
         self.number.trace("w", self.set_config)
+
+        new_number = tk.Frame(btns)
+        label_new_id = tk.Label(new_number, text="New ID")
+        self.spinbox_new_id = tk.Spinbox(new_number, from_=0, to=65535, textvariable=self.new_number)
+        label_new_id.pack(side=tk.LEFT, padx=5)
+        self.spinbox_new_id.pack()
 
         usb_ports.pack(fill=tk.X, pady=5)
         btn_getinfo.pack(fill=tk.X, pady=5)
@@ -118,9 +126,11 @@ class AvrDuino(object):
         btn_bootloader.pack(fill=tk.X, pady=5)
         btn_program.pack(fill=tk.X, pady=5)
         btn_update.pack(fill=tk.X, pady=5)
+        btn_setid.pack(fill=tk.X, pady=5)
         btn_start.pack(fill=tk.X, pady=5)
         btn_stop.pack(fill=tk.X, pady=5)
         number.pack(fill=tk.X, pady=5)
+        new_number.pack(fill=tk.X, pady=5)
         chk_dry.pack(fill=tk.X, pady=5)
 
         txts1 = tk.Frame(root)
@@ -296,6 +306,13 @@ class AvrDuino(object):
     def program_domuino(self):
         dude = SimpleDude(self.ser, hexfile=DOMUINO, mode485=True)
         dude.program()
+
+    def set_id(self):
+        if self.domuino:
+            n = int(self.number.get())
+            new_id = int(self.new_number.get())
+            self.domuino.send(n, bytearray((QUERIES["SETID"], new_id)))
+            self.number.set(new_id)
 
 
 if __name__ == '__main__':

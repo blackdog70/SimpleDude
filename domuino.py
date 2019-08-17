@@ -66,6 +66,7 @@ QUERIES = {
     "RESET": 0x82,
     "STANDBY": 0x83,
     "RUN": 0x84,
+    "SETID": 0x85,
     "CONFIG": 0x88,
     "HUB": 0x89,
     "LCDWRITE": 0x93,
@@ -85,6 +86,7 @@ QUERIES = {
     0x82: "RESET",
     0x83: "STANDBY",
     0x84: "RUN",
+    0x85: "SETID",
     0x88: "CONFIG",
     0x89: "HUB",
     0x90: "MEM",
@@ -145,6 +147,8 @@ class Domuino(DomuNet):
                 value.update({'value': struct.unpack("h", packet.data[1:3])[0]})
             elif packet.data[0] == QUERIES['START']:
                 # value.update({'value': struct.unpack("h", packet.data[1:3])[0]})
+                pass
+            elif packet.data[0] == QUERIES["SETID"]:
                 pass
             elif packet.data[0] == QUERIES['RESET']:
                 dude = SimpleDude(self.port,
