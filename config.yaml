@@ -1,0 +1,8 @@
+12:
+  - CONFIG:
+      HBT: 0
+      LUX: 0
+      PIR: 0
+      DHT: 0
+      EMS: 0
+      SWITCH: 0

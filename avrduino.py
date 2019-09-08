@@ -1,11 +1,12 @@
 #!venv/bin/python3
+# coding=utf8
 
 import subprocess
 import tkinter as tk
 from tkinter import ttk
 import os
 import logging
-import pyudev
+#import pyudev
 from configparser import ConfigParser
 import pexpect
 

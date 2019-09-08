@@ -1,9 +1,10 @@
 #!/usr/bin/python
+# coding=utf-8
 
 # import libraries
 import logging
 import time
-#from oauthlib.oauth2.rfc6749.parameters import prepare_grant_uri
+
 from serial import rs485
 
 STK_OK = 0x10
@@ -91,21 +92,26 @@ class SimpleDude(object):
         tx_complete = len(codes) * 0.53 + 1
         while retry:
             self.logger.debug("Send %s", [hex(b) for b in codes])
-            time.sleep(0.01)
+            #time.sleep(0.01)
             # self.sock.setRTS(False)
             tx_start = time.time()
             self.sock.write(codes)
-            while (time.time() - tx_start) < (tx_complete / 1000.0):
-                pass
-            # self.sock.setRTS(True)
             self.logger.debug("Wait for reply")
+            # while (time.time() - tx_start) < (tx_complete / 1000.0):
+            #     pass
+            # self.sock.setRTS(True)
             # Wait for bytesreply + INSYNC + OK
             reply = list(self.sock.read(size=bytesreply + 2))
             self.logger.debug("Received %s", [hex(b) for b in reply])
             if not reply or ([reply[0], reply[-1]] != INSINK):
+                if not reply:
+                    self.logger.critical("Not reply")
                 if n < self.retry:
                     n += 1
                     self.logger.critical("Retry %s", n)
+                    self.sock.flushInput()
+                    self.sock.flushOutput()
+                    time.sleep(0.2)
                     continue
                 else:
                     self.logger.critical("Not in sync")
@@ -275,14 +281,17 @@ class SimpleDude(object):
                     self.spi_transaction(EXIT_PROG_MODE)
                     return True
 
+HEXFILE = "C:\\Users\\erika\\OneDrive\\Documenti\\Arduino\\sketch\\domuino\\Release\\domuino.hex"
+
 
 if __name__ == '__main__':
     # rs485.RS485Settings.rts_level_for_tx = False
     # rs485.RS485Settings.rts_level_for_rx = True
-    ser = rs485.RS485('/dev/ttyUSB2', baudrate=38400, timeout=2)
+#    ser = rs485.RS485('/dev/ttyUSB2', baudrate=38400, timeout=2)
+    ser = rs485.RS485('COM5', baudrate=38400, timeout=2)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/blink/Release/blink.hex", mode485=True)
-    dude = SimpleDude(ser, hexfile="domuino.hex", mode485=True)
+    dude = SimpleDude(ser, hexfile=HEXFILE, mode485=True)
     # dude = SimpleDude(ser, hexfile="/home/sebastiano/Documents/sloeber-workspace/testssd1306ascii/Release/testssd1306ascii.hex", mode485=True)
-    # dude.get_info()
+    #dude.get_info()
     dude.program()
     #dude.verify()
