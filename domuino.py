@@ -24,7 +24,7 @@ from nbstreamreader import NonBlockingStreamReader as NBSR, UnexpectedEndOfStrea
 BASEDIR = os.path.dirname(__file__)
 
 FORMAT = '%(asctime)-15s %(levelname)-8s [%(module)s:%(funcName)s:%(lineno)s] [%(node)s] : %(message)s'
-logging.basicConfig(level=logging.INFO, format=FORMAT)
+logging.basicConfig(level=logging.CRITICAL, format=FORMAT)
 
 if os.name == 'nt':
     AVRDUDE = BASEDIR + "/avrdude/win/avrdude.exe"
@@ -149,13 +149,15 @@ QUERIES = {
     0x9f: "HBT",
     0xA0: "DHT",
     0xA1: "EMS",
-    0xA2: "BYNARY_OUT",
+    0xA2: "BINARY_OUT",
     0xA3: "SWITCH",
     0xA4: "LIGHT",
     0xA5: "PIR",
     0xA6: "LUX",
     0xA7: "OUT",
 }
+
+
 class Domuino(DomuNet):
     def parse_query(self, packet):
         try:
@@ -229,36 +231,21 @@ class Domuino(DomuNet):
             raise Exception('{}'.format(value))
 
     def _run(self, command, work_dir=""):
-        run_ok = True
-
         p = subprocess.Popen(command,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE,
                              stdin=subprocess.PIPE,
                              shell=True,
                              )
-        #                             cwd=work_dir)
-        try:
-            out = NBSR(p.stdout)
-            err = NBSR(p.stderr)
-            output = out.readline(0.1)
-            error = err.readline(0.1)
+        out = NBSR(p.stdout)
+        err = NBSR(p.stderr)
+        while p.poll() is None:
+            output = out.readline(0.01)
+            error = err.readline(0.01)
             if output:
-                print(str(output))
+                print(output.decode("UTF-8"), end="")
             if error:
-                print(str(error))
-            while True:
-                output = out.readline(0.01)
-                error = err.readline(0.01)
-                if output:
-                    print(output.decode("UTF-8"), end="")
-                if error:
-                    print(error.decode("UTF-8"), end="")
-                p.poll()
-                if error == "" and output == "" and p.returncode is not None:
-                    break
-        except UnexpectedEndOfStream:
-            pass
+                print(error.decode("UTF-8"), end="")
 
     def compile_bootloader(self, make, env, address, workdir):
         make = "{} " \
@@ -313,11 +300,13 @@ def domuino_communicate(instance, commands=""):
             cmds = prepare_commands(commands)
         else:
             cmds = None
+        a.pause()
+        while cmds:
+            cmd = cmds.pop(0)
+            a.send(cmd["id"], cmd["cmd"])
+        a.resume()
         while True:
-            if cmds:
-                cmd = cmds.pop(0)
-                a.send(cmd["id"], cmd["cmd"])
-            time.sleep(0.05)
+            time.sleep(1)
     except KeyboardInterrupt:
         instance.stop()
         exit()
@@ -343,13 +332,12 @@ if __name__ == '__main__':
     parser.add_argument("-S", "--setstate", help="Update device state. valid value = [RUN|STANDBY]")
     args = parser.parse_args()
 
-    if args.port:
-        # ser = serial_for_url('/dev/ttyUSB0', rtscts=True, baudrate=38400)
-        ser = serial_for_url(args.port, baudrate=38400)
-#        ser = rs485.RS485(args.port, baudrate=38400)
+    # ser = serial_for_url('/dev/ttyUSB0', rtscts=True, baudrate=38400)
+    ser = serial_for_url(args.port, baudrate=38400, timeout=0.1) if args.port else None
+    #ser = rs485.RS485(args.port, baudrate=38400)
 
-        a = Domuino(1, ser)
-        a.daemon = True
+    a = Domuino(1, ser)
+    a.daemon = True
     try:
         if args.info:
             # a.start()

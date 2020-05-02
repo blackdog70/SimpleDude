@@ -32,7 +32,7 @@ else:
     AVRDUDE = BASEDIR + "/avrdude/linux/avrdude"
     AVRCONF = BASEDIR + "/avrdude/linux/avrdude.conf"
 
-CONFIG = BASEDIR + "/ms-config.yaml"
+CONFIG = BASEDIR + "./ms-config.yaml"
 AVRCMD = "{} -c USBasp -p m168p -C {}".format(AVRDUDE, AVRCONF)
 
 QUERIES = {

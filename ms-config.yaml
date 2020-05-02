@@ -1,0 +1,100 @@
+# ************************* CAMERETTA #2 10
+C2-1:
+  net: 10
+C2-3M:
+  net: 11
+C2-3H:
+  net: 12
+C2-4:
+  net: 13
+# ************************* CAMERETTA #1 20
+C1-1:
+  net: 20
+C1-2M:
+  net: 21
+C1-2H:
+  net: 22
+C1-3:
+  net: 23
+# ************************* BAGNO PRINCIPALE 30
+BP-1M:
+  net: 30
+  config:
+    SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [0, 1, 0]}}
+    ]
+BP-1H:
+  net: 31
+BP-2:
+  net: 32
+# ************************* BAGNO MATRIMONIALE 40
+BM-1:
+  net: 40
+BM-2M:
+  net: 41
+BM-2H:
+  net: 42
+# ************************* CAMERA MATRIMONIALE 50
+CM-1M:                         # SCHEDA CON LED ALIM POCO VISIBILE
+  net: 50
+CM-1H:                          # PROBLEMI CONNETTORE SEGNALE RS485 CAVO BIANCO
+  net: 51
+CM-4:
+  net: 52
+#CM-5:
+#  net: 53
+#CM-6:
+#  net: 54
+# ************************* SALOTTO/SOGGIORNO 60
+SA-2:
+  net: 60
+SA-3:
+  net: 61
+  config:
+    SWITCH: 0
+    LUX: 0
+    DHT: 0
+    EMS: 0
+    PIR: 0
+    HBT: 0
+SA-7:
+  net: 62
+SA-10M:
+  net: 63
+SA-10H:
+  net: 64
+# ************************* CUCINA 70
+CU-1M:
+  net: 70
+  config:
+     SWITCH: 1
+     DHT: 0
+     EMS: 0
+     PIR: 0
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [1, 0, 0]}}
+    ]
+CU-1H:
+  net: 71
+CU-8:
+  net: 72
+  config:
+     SWITCH: 1
+     DHT: 0
+     EMS: 0
+     PIR: 0
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [1, 0, 0]}}
+    ]
+CU-9:               # POSSIBILI PROB ALIMENTAZIONE CONNETTORE IN SCATOLA
+  net: 73
+# ************************* SCALA/ESTERNO 80
+SC-1:
+  net: 80
+# ************************* SERVIZI
+LIGHT1:
+  net: 100

@@ -70,7 +70,6 @@ INSINK = [STK_INSYNC, STK_OK]
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
-
 class SimpleDude(object):
     def __init__(self, sock, retry=9, hexfile="", mode485=False):
         self.sock = sock
