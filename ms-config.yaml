@@ -3,6 +3,12 @@ C2-1:
   net: 10
 C2-3M:
   net: 11
+  config:
+    SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]}}
+    ]
 C2-3H:
   net: 12
 C2-4:
@@ -12,6 +18,12 @@ C1-1:
   net: 20
 C1-2M:
   net: 21
+  config:
+    SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}}
+    ]
 C1-2H:
   net: 22
 C1-3:
@@ -23,7 +35,7 @@ BP-1M:
     SWITCH: 1
   SWITCH:
     1: [
-    {"LIGHT1": {"LIGHT": [0, 1, 0]}}
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}}
     ]
 BP-1H:
   net: 31
@@ -34,11 +46,23 @@ BM-1:
   net: 40
 BM-2M:
   net: 41
+  config:
+    SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}}
+    ]
 BM-2H:
   net: 42
 # ************************* CAMERA MATRIMONIALE 50
 CM-1M:                         # SCHEDA CON LED ALIM POCO VISIBILE
   net: 50
+  config:
+    SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]}}
+    ]
 CM-1H:                          # PROBLEMI CONNETTORE SEGNALE RS485 CAVO BIANCO
   net: 51
 CM-4:
@@ -75,10 +99,18 @@ CU-1M:
      PIR: 0
   SWITCH:
     1: [
-    {"LIGHT1": {"LIGHT": [1, 0, 0]}}
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}}
+    ]
+    2: [
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]}}
     ]
 CU-1H:
   net: 71
+  config:
+     SWITCH: 1
+     DHT: 300
+     EMS: 0
+     PIR: 0
 CU-8:
   net: 72
   config:
@@ -88,13 +120,37 @@ CU-8:
      PIR: 0
   SWITCH:
     1: [
-    {"LIGHT1": {"LIGHT": [1, 0, 0]}}
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]}}
+    ]
+    2: [
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}}
     ]
 CU-9:               # POSSIBILI PROB ALIMENTAZIONE CONNETTORE IN SCATOLA
   net: 73
+  config:
+     SWITCH: 1
+  SWITCH:
+    1: [
+    {"LIGHT1": {"LIGHT": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}}
+    ]
 # ************************* SCALA/ESTERNO 80
 SC-1:
   net: 80
 # ************************* SERVIZI
 LIGHT1:
   net: 100
+ARDUINO_TEST:
+  net: 36097
+  config:
+    DHT: 10
+    SWITCH: 0
+    EMS: 0
+    PIR: 0
+  DHT:
+    "ARDUINO_TEST": [
+        {"LCDPRINT": [0, 45, 0, "DOMUINO"]},
+        {"LCDPRINT": [3, 33, 0, "^C"]},
+        {"LCDPRINT": [3, 98, 0, "RH%"]},
+        {"LCDPRINT": [5, 2, 1, "{temperature:0>4.1f}"]},
+        {"LCDPRINT": [5, 72, 1, "{humidity:0>4.1f}"]},
+    ]
