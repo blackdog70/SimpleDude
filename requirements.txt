@@ -1,0 +1,5 @@
+PyYAML~=5.1.2
+pyserial~=3.0
+pexpect~=4.7.0
+aiohttp~=3.6.2
+PyCRC~=1.21
