@@ -28,9 +28,9 @@ def log(log_msg, packet):
     LOGGER.info(value)
 
 
-async def recv(r, com):
+async def recv(com):
     while True:
-        await r.readuntil(PACKET_HEADER)
+        await NET_CONFIG[com].reader.readuntil(PACKET_HEADER)
         packet = Packet().deserialize(await r.read(SIZE))
         if packet is not None:
             c_key = f'{packet.source:02}{packet.dest:02}'
@@ -41,53 +41,55 @@ async def recv(r, com):
                 queue_in[com].put_nowait(packet[:SIZE])
 
 
-async def protocol_in(port, com):
+async def protocol_in(com):
     while True:
         received = await queue_in[com].get()
         result = parse_packet(received)
         packet = Packet(result['reply'], dest=received.source)
-        port.write(packet.serialize())
+        NET_CONFIG[com].writer.write(packet.serialize())
         log("HUB[REPLY]->", packet)
         send(execute(result))
 
 
-async def protocol_out(port, com):
-    while True:
-        if not queue_in[com].qsize():
-            msg = await queue_out[com].get()
-            context[f'{msg.dest:02}{msg.source:02}'] = msg
-            for retry in range(SEND_RETRY):
-                log(f"HUB[+{retry}]->", msg)
-                port.write(msg.serialize())
-                try:
-                    msg = await asyncio.wait_for(reply[com].get(), timeout=PACKET_TIMEOUT)
-                    log("->HUB", msg)
-                    # todo: cosa ne faccio del messaggio di risposta?
-                    break
-                except asyncio.TimeoutError:
-                    await asyncio.sleep(1)
-            else:
-                log("HUB->TIMEOUT", msg)
+async def protocol_out(com, msg):      
+    context[f'{msg.dest:02}{msg.source:02}'] = msg
+    for retry in range(SEND_RETRY):
+        log(f"HUB[+{retry}]->", msg)
+        NET_CONFIG[com].writer.write(msg.serialize())
+        try:
+            msg = await asyncio.wait_for(reply[com].get(), timeout=PACKET_TIMEOUT)
+            log("->HUB", msg)
+            return msg
+        except asyncio.TimeoutError:
+            await asyncio.sleep(1)
+    else:
+        log("HUB->TIMEOUT", msg)
 
 
 def send(msgs):
+    results = list()
     for com, values in NET_CONFIG.items():
         for msg in msgs:
             if values.get(NET_REVERSEID[msg.dest], None):
-                queue_out[com].put_nowait(msg)
+                results.append(await protocol_out(com, msg))
+    return results
 
 
 async def main(loop):
     task = list()
-    for com in PORTS:
+    for com in NET_CONFIG.keys():
         queue_out[com] = asyncio.Queue()
         queue_in[com] = asyncio.Queue()
         reply[com] = asyncio.Queue()
 
         reader, writer = await serial_asyncio.open_serial_connection(url=com, baudrate=19200)
-        task.append(asyncio.create_task(recv(reader, com)))
-        task.append(asyncio.create_task(protocol_in(writer, com)))
-        task.append(asyncio.create_task(protocol_out(writer, com)))
+        
+        NET_CONFIG[com].reader = reader
+        NET_CONFIG[com].writer = writer
+        
+        task.append(asyncio.create_task(recv(com)))
+        task.append(asyncio.create_task(protocol_in(com)))
+        task.append(asyncio.create_task(protocol_out(com)))
         LOGGER.info(f'Reader/Writer created on port {com}')
     LOGGER.info('Serial server started')
     return task
