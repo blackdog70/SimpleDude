@@ -1,5 +1,5 @@
 import unittest
-import domuino
+import protocol as domuino
 
 TEST1 = {1: {"CONFIG": {"HBT": 1, "DHT": 50}}, }
 TEST2 = {1: {"CONFIG": {"HBT": 1}}}

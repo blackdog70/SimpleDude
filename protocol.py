@@ -15,11 +15,12 @@ import serial
 from simpledude import SimpleDude
 from nbstreamreader import NonBlockingStreamReader as NBSR
 
+
 PACKET_HEADER = b'\x08\x70'
 NODE_ID = 1
 MAX_PAYLOAD_SIZE = 13
 MAX_PACKET_SIZE = 8 + MAX_PAYLOAD_SIZE  # 2 HEADER + 2 SOURCE + 2 DEST + 2 CRC
-PACKET_TIMEOUT = 0.5
+PACKET_TIMEOUT = 1
 SEND_RETRY = 3
 
 BASEDIR = os.path.dirname(__file__)
@@ -93,17 +94,34 @@ NET_ID = dict()
 with open(CONFIG) as f:
     NET_CONFIG = yaml.load(f, Loader=yaml.FullLoader)
 
-PORTS = list()
+# DEVICES = dict()
+
 for port, config in NET_CONFIG.items():
-    PORTS.append(port)
     for dest, settings in config.items():
+        if settings.get('config'):
+            if settings['config'].get('LIGHT'):
+                NET_CONFIG[port][dest]['state'] = [0] * 11
         NET_ID[dest] = settings['net']
         NET_REVERSEID[settings['net']] = dest
+        # if settings.get('lights'):
+        #     DEVICES['LIGHT'] = settings['lights']
+    NET_CONFIG[port]['writer'] = None
+    NET_CONFIG[port]['reader'] = None
+
+
+def get_device(name):
+    device = dict()
+    for value in NET_CONFIG.values():
+        device = value.get(name)
+        if device is not None:
+            break
+    return device
 
 
 class Packet(object):
-    def __init__(self, data=None, source=1, dest=255):
+    def __init__(self, data=None, source=1, dest=255, bus=None):
         self.header = PACKET_HEADER
+        self.bus = bus
         self.source = source
         self.dest = dest
         self.data = data
@@ -151,11 +169,11 @@ class Packet(object):
 
 def parse_packet(packet):
     try:
-        if packet.data[0] not in QUERIES:
+        if packet is None or packet.data[0] not in QUERIES:
             # self.logger.error("Error packet: %s", packet.serialize(), extra=self.logextra)
-            return 0
+            return None
         # self.logger.info("Parsing command %s", QUERIES[packet.data[0]])
-        value = {'type': "->HUB",
+        value = {'type': f"{packet.source}->{packet.dest}",
                  'time': datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                  'node': packet.source,
                  'msg': QUERIES[packet.data[0]],
@@ -165,19 +183,20 @@ def parse_packet(packet):
         # elif value['msg'] == "EMS":  # ems
         #     value.update({'value': struct.unpack("ff", packet.data[1:8])})
         elif value['msg'] == "DHT":  # TEMP & HUM
-            value.update({'temperature': struct.unpack("h", packet.data[1:3])[0] / 10.0,
-                          'humidity': struct.unpack("h", packet.data[3:5])[0] / 10.0})
+            temperature = struct.unpack("h", packet.data[1:3])[0] / 10.0
+            humidity = struct.unpack("h", packet.data[3:5])[0] / 10.0
+            value.update({'temperature': temperature if temperature < 60.0 else 60.0,
+                          'humidity': humidity if humidity < 100.0 else 100.0})
         elif value['msg'] == "PIR":
             value.update({'value': struct.unpack("b", packet.data[1:2])[0]})
         elif value['msg'] == "LUX":
             value.update({'value': struct.unpack("h", packet.data[1:3])[0]})
         elif value['msg'] == "SWITCH":
-            state = list(packet.data[1:7])
-            value.update({'state': state})
-            # if packet.source == 3 or packet.source == 5:
-            #    self.send(4, bytearray((QUERIES["LIGHT"], state[0], 0, 0)))
+            value.update({'state': list(packet.data[1:7])})
         elif value['msg'] == "LIGHT":
-            value.update({'state': list(packet.data[1:12])})
+            device = get_device(NET_REVERSEID[packet.source])
+            device['state'] = list(packet.data[1:12])
+            value.update({'state': device['state']})
         elif value['msg'] == "HBT":
             pass
         elif value['msg'] == "VERSION":
@@ -186,7 +205,7 @@ def parse_packet(packet):
             dude.program()
         LOGGER.info(value)
     except Exception as e:
-        raise Exception(f'{e} - {value}')
+        raise Exception(f'PARSE: {e} - {packet.serialize()}')
     return value
 
 
@@ -247,6 +266,10 @@ def prepare_commands(dest, commands, format_values={}):
     def parse_cmd(msg, packets):
         if type(msg) is dict:
             for k1, v1 in msg.items():  # command with 1 arg
+                device = get_device(dest)
+                if device["config"].get("LIGHT", 0) and type(v1) is str:
+                    v1 = device.get("lights", {}).get(v1, [0] * 11)
+
                 if format_values:
                     v1 = ast.literal_eval(str(v1).format(**format_values))
                 if type(v1) is dict:
@@ -263,42 +286,49 @@ def prepare_commands(dest, commands, format_values={}):
         return packets
 
     packet_queue = collections.deque()
-    # for cmd in commands:
-    #     parse_cmd(cmd, packet_queue)
+    try:
+        # for cmd in commands:
+        #     parse_cmd(cmd, packet_queue)
 
-    if type(commands) is dict:
-        parse_cmd(commands, packet_queue)
-    else:
-        if type(commands) is list:
-            for cmd in commands:
-                parse_cmd(cmd, packet_queue)
+        if type(commands) is dict:
+            parse_cmd(commands, packet_queue)
         else:
-            append({"id": dest, "cmd": bytearray([QUERIES[commands], ])}, packet_queue)
+            if type(commands) is list:
+                for cmd in commands:
+                    parse_cmd(cmd, packet_queue)
+            else:
+                append({"id": dest, "cmd": bytearray([QUERIES[commands], ])}, packet_queue)
+    except Exception as e:
+        LOGGER.error(f"PREPARE: {e}")
+
     return packet_queue
 
 
 def execute(value):
     cmds = collections.deque()
-    node = NET_ID.get(NET_REVERSEID.get(value.get('node')))
+    for config in NET_CONFIG.values(): # todo:ottimizzare
+        node = config.get(NET_REVERSEID.get(value.get('node')), None)
+        if node:
+            break
     if node:
         try:
             node_commands = node.get(value['msg'])
             if value['msg'] == 'SWITCH':
-                for idx, switch in enumerate(value['state']):
+                for idx, switch in enumerate(value['state'], 1):
                     if switch == 1:
-                        for light in node_commands.get(idx + 1, []):
-                            dest = list(light.keys())[0]
-                            cmds.extend(prepare_commands(dest, light.get(dest)))
+                        for commands in node_commands.get(idx, []):
+                            for dest, cmd in commands.items():
+                                cmds.extend(prepare_commands(dest, cmd))
             elif value['msg'] == 'DHT':
                 if type(node_commands) is dict:
                     dest = list(node_commands.keys())[0]
                     cmds.extend(prepare_commands(dest, node_commands.get(dest), value))
                 else:
-                    for cmd in node_commands:
-                        dest = list(cmd.keys())[0]
-                        cmds.extend(prepare_commands(dest, cmd.get(dest), value))
+                    for commands in node_commands:
+                        for dest, cmd in commands.items():
+                            cmds.extend(prepare_commands(dest, cmd, value))
         except Exception as e:
-            LOGGER.critical(e)
+            LOGGER.critical(f"EXECUTE: {e}")
             value.update({'type': "[UNCONFIGURED]->HUB",
                           'time': datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")})
     else:
